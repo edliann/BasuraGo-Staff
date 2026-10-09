@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "BasuraGo Staff",
+    "slug": "basurago-staff",
+    "scheme": "basurago-staff",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.edliann.basurago.staff",
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow BasuraGo Staff to scan pickup QR codes",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
