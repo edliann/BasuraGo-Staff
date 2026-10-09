@@ -246,6 +246,15 @@ export default function PickupReceiptScreen() {
               the ID manually. Confirm the measured weight before submitting
               the receipt.
             </Text>
+
+            {pickupId.trim() ? (
+              <View style={styles.scannedIdBox}>
+                <Text style={styles.scannedIdLabel}>Scanned pickup ID</Text>
+                <Text selectable style={styles.scannedIdValue}>
+                  {pickupId.trim()}
+                </Text>
+              </View>
+            ) : null}
             {permission === null ? (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color="#1F7A3F" />
@@ -519,5 +528,24 @@ const styles = StyleSheet.create({
     color: '#92400E',
     fontSize: 14,
     lineHeight: 20,
+  },
+  scannedIdBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#E8F5EC',
+    borderWidth: 1,
+    borderColor: '#B7DEC2',
+  },
+  scannedIdLabel: {
+    color: '#34483A',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  scannedIdValue: {
+    color: '#166534',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

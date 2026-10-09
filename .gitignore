@@ -19,3 +19,8 @@ google-services.json
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+
+# Firebase credentials
+*service-account*.json
+*firebase-adminsdk*.json
+

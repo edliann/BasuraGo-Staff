@@ -11,11 +11,7 @@ export default function IndexScreen() {
     status === 'checking' ||
     status === 'logging-out'
   ) {
-    return (
-      <LoadingScreen
-        message={status === 'logging-out' ? 'Signing out...' : undefined}
-      />
-    );
+    return <LoadingScreen />;
   }
 
   if (status === 'authorized') {

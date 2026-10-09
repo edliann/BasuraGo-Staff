@@ -108,7 +108,7 @@ export default function DashboardScreen() {
         <View style={styles.emptyCard}>
           <Pressable
             style={styles.scanButton}
-            onPress={() => router.push('/receipt')}
+            onPress={() => router.push('./receipt')}
             accessibilityRole="button"
           >
             <Text style={styles.scanButtonText}>Receive a Pickup</Text>

@@ -4,8 +4,8 @@ interface AccessErrorScreenProps {
   title?: string;
   message: string;
   retryLabel?: string;
-  onRetry: () => void;
-  onLogout?: () => void;
+  onRetry: () => void | Promise<void>;
+  onLogout?: () => void | Promise<void>;
 }
 
 export default function AccessErrorScreen({
