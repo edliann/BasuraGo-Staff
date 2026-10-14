@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import FloatingTabBar from '@/components/FloatingTabBar';
 import LoadingScreen from '@/components/LoadingScreen';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -229,6 +230,7 @@ export default function DashboardScreen() {
 
         <Text style={styles.footer}>BasuraGo · Facility operations</Text>
       </ScrollView>
+      <FloatingTabBar />
     </SafeAreaView>
   );
 }
@@ -242,7 +244,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 112,
   },
   header: {
     flexDirection: 'row',
