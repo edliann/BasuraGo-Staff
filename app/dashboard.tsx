@@ -128,9 +128,9 @@ export default function DashboardScreen() {
             Welcome back,{'\n'}
             <Text style={styles.welcomeName}>{dashboard.staffName}</Text>
           </Text>
-          <Text style={styles.intro}>
-            Here's the information for your assigned facility.
-          </Text>
+            <Text style={styles.intro}>
+              Here&apos;s the information for your assigned facility.
+            </Text>
         </View>
 
         <View style={styles.facilityCard}>
@@ -220,7 +220,7 @@ export default function DashboardScreen() {
               <Text style={styles.emptyIllustrationText}>✓</Text>
             </View>
           </View>
-          <Text style={styles.emptyTitle}>You're all set</Text>
+          <Text style={styles.emptyTitle}>You&apos;re all set</Text>
           <Text style={styles.emptyBody}>
             Pickup and delivery updates will appear here when they are available.
             For now, use Receive a pickup to record an incoming facility receipt.

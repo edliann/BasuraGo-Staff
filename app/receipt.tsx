@@ -267,9 +267,7 @@ export default function PickupReceiptScreen() {
                   style={styles.camera}
                   facing="back"
                   barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                  onBarcodeScanned={
-                    barcodeHandled.current ? undefined : handleBarcodeScanned
-                  }
+                  onBarcodeScanned={handleBarcodeScanned}
                 />
                 <Text style={styles.cameraHint}>
                   Hold the pickup QR code inside the camera view.
