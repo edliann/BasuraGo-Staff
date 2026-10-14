@@ -3,7 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import FloatingTabBar from '@/components/FloatingTabBar';
+import FloatingTabBar from '../components/FloatingTabBar';
 import LoadingScreen from '@/components/LoadingScreen';
 import { useAuth } from '@/contexts/AuthContext';
 
