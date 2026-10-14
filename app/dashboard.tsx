@@ -99,38 +99,40 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        <View style={styles.header}>
-          <View style={styles.brandLockup}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>B</Text>
+        <View style={styles.hero}>
+          <View style={styles.header}>
+            <View style={styles.brandLockup}>
+              <View style={styles.brandMark}>
+                <Text style={styles.brandMarkText}>B</Text>
+              </View>
+              <View>
+                <Text style={styles.brand}>BasuraGo</Text>
+                <Text style={styles.role}>FACILITY STAFF</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.brand}>BasuraGo</Text>
-              <Text style={styles.role}>FACILITY STAFF</Text>
-            </View>
+            <Pressable
+              onPress={logout}
+              accessibilityRole="button"
+              accessibilityLabel="Log out"
+              style={({ pressed }) => [
+                styles.logoutButton,
+                pressed && styles.logoutButtonPressed,
+              ]}
+            >
+              <Text style={styles.logoutText}>Log out</Text>
+            </Pressable>
           </View>
-          <Pressable
-            onPress={logout}
-            accessibilityRole="button"
-            accessibilityLabel="Log out"
-            style={({ pressed }) => [
-              styles.logoutButton,
-              pressed && styles.logoutButtonPressed,
-            ]}
-          >
-            <Text style={styles.logoutText}>Log out</Text>
-          </Pressable>
-        </View>
 
-        <View style={styles.welcomeBlock}>
-          <Text style={styles.greeting}>YOUR WORKSPACE</Text>
-          <Text style={styles.welcome}>
-            Welcome back,{'\n'}
-            <Text style={styles.welcomeName}>{dashboard.staffName}</Text>
-          </Text>
+          <View style={styles.welcomeBlock}>
+            <Text style={styles.greeting}>YOUR WORKSPACE</Text>
+            <Text style={styles.welcome}>
+              Welcome back,{'\n'}
+              <Text style={styles.welcomeName}>{dashboard.staffName}</Text>
+            </Text>
             <Text style={styles.intro}>
               Here&apos;s the information for your assigned facility.
             </Text>
+          </View>
         </View>
 
         <View style={styles.facilityCard}>
@@ -236,19 +238,27 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F8F5',
+    backgroundColor: '#F5F8F6',
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 32,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 36,
+  },
+  hero: {
+    padding: 22,
+    paddingTop: 20,
+    marginBottom: 22,
+    borderRadius: 26,
+    backgroundColor: '#105C3B',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: 25,
   },
   brandLockup: {
     flexDirection: 'row',
@@ -261,22 +271,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#176B3A',
+    backgroundColor: '#D7F5A6',
   },
   brandMarkText: {
-    color: '#FFFFFF',
+    color: '#105C3B',
     fontSize: 22,
     fontWeight: '900',
   },
   brand: {
-    color: '#173C28',
+    color: '#FFFFFF',
     fontSize: 21,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   role: {
     marginTop: 2,
-    color: '#66806D',
+    color: '#BDE3C9',
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,
@@ -287,48 +297,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#DCE5DD',
+    borderColor: '#4B896B',
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   logoutButtonPressed: {
-    backgroundColor: '#EAF1EB',
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   logoutText: {
-    color: '#3D5545',
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
   },
   welcomeBlock: {
-    marginBottom: 22,
+    marginBottom: 0,
   },
   greeting: {
     marginBottom: 9,
-    color: '#398052',
+    color: '#BDE3C9',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.6,
   },
   welcome: {
-    color: '#17271D',
+    color: '#FFFFFF',
     fontSize: 29,
     lineHeight: 36,
     fontWeight: '800',
     letterSpacing: -0.8,
   },
   welcomeName: {
-    color: '#176B3A',
+    color: '#D7F5A6',
   },
   intro: {
     marginTop: 9,
-    color: '#66736A',
+    color: '#D3E9DA',
     fontSize: 14,
     lineHeight: 21,
   },
   facilityCard: {
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E0E8E1',
+    borderColor: '#DCE8DE',
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     shadowColor: '#173C28',
@@ -348,10 +358,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 13,
-    backgroundColor: '#EAF5EC',
+    backgroundColor: '#E8F5EC',
   },
   facilityIconText: {
-    color: '#176B3A',
+    color: '#176744',
     fontSize: 26,
     fontWeight: '700',
   },
@@ -392,7 +402,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#B42318',
   },
   statusText: {
-    color: '#1F7A3F',
+    color: '#176744',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -470,7 +480,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 17,
     borderRadius: 20,
-    backgroundColor: '#176B3A',
+    backgroundColor: '#176744',
     shadowColor: '#176B3A',
     shadowOffset: { width: 0, height: 7 },
     shadowOpacity: 0.15,
