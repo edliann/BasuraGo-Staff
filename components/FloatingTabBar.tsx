@@ -1,4 +1,4 @@
-import Icon from 'react-native-remix-icon';
+import AppIcon from './AppIcon';
 import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -30,7 +30,7 @@ export default function FloatingTabBar() {
             accessibilityState={{ selected: active }}
             accessibilityLabel={tab.label}
           >
-            <Icon
+            <AppIcon
               name={active ? tab.icon.replace('-line', '-fill') : tab.icon}
               size={23}
               color={active ? '#176B3A' : '#78867B'}
