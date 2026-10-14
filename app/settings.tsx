@@ -1,4 +1,4 @@
-import Icon from 'react-native-remix-icon';
+import AppIcon from '../components/AppIcon';
 import { Redirect, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +17,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable style={styles.backButton} onPress={() => router.replace('/account')} accessibilityRole="button" accessibilityLabel="Back to account">
-          <Icon name="arrow-left-s-line" size={22} color="#176B3A" fallback={null} />
+          <AppIcon name="arrow-left-s-line" size={22} color="#176B3A" fallback={null} />
           <Text style={styles.backText}>Account</Text>
         </Pressable>
         <Text style={styles.eyebrow}>PREFERENCES</Text>
@@ -26,7 +26,7 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <View style={styles.row}>
-            <View style={styles.iconBox}><Icon name="sun-line" size={22} color="#176B3A" fallback={null} /></View>
+            <View style={styles.iconBox}><AppIcon name="sun-line" size={22} color="#176B3A" fallback={null} /></View>
             <View style={styles.copy}>
               <Text style={styles.rowTitle}>Appearance</Text>
               <Text style={styles.rowDescription}>BasuraGo currently uses the light theme.</Text>
@@ -35,7 +35,7 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
-            <View style={styles.iconBox}><Icon name="shield-check-line" size={22} color="#176B3A" fallback={null} /></View>
+            <View style={styles.iconBox}><AppIcon name="shield-check-line" size={22} color="#176B3A" fallback={null} /></View>
             <View style={styles.copy}>
               <Text style={styles.rowTitle}>Facility access</Text>
               <Text style={styles.rowDescription}>Access is verified automatically while you use the app.</Text>
