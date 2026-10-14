@@ -3,6 +3,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Image,
   Text,
   View,
 } from 'react-native';
@@ -101,12 +102,13 @@ export default function DashboardScreen() {
 
         <View style={styles.header}>
           <View style={styles.brandLockup}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>B</Text>
-            </View>
             <View>
-              <Text style={styles.brand}>BasuraGo</Text>
-              <Text style={styles.role}>FACILITY STAFF</Text>
+              <Image
+                source={require('../src/assets/images/basurago-logo.png')}
+                style={styles.brandLogo}
+                resizeMode="contain"
+                accessibilityLabel="BasuraGo logo"
+              />
             </View>
           </View>
           <Pressable
@@ -685,5 +687,10 @@ const styles = StyleSheet.create({
     color: '#9AA69C',
     fontSize: 11,
     textAlign: 'center',
+  },
+  brandLogo: {
+    width: 167,
+    height: 67,
+    flexShrink: 1,
   },
 });
