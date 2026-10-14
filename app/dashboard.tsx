@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     padding: 17,
     borderRadius: 20,
     backgroundColor: '#176744',
-    shadowColor: '#176B3A',
+    shadowColor: '#176744',
     shadowOffset: { width: 0, height: 7 },
     shadowOpacity: 0.15,
     shadowRadius: 14,
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: '#176B3A',
+    backgroundColor: '#176744',
   },
   emptyIllustrationText: {
     color: '#FFFFFF',
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   retryButtonText: {
-    color: '#176B3A',
+    color: '#176744',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#176B3A',
+    backgroundColor: '#176744',
   },
   primaryButtonText: {
     color: '#FFFFFF',
