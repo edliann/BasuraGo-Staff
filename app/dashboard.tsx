@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import FloatingTabBar from '@/components/FloatingTabBar';
+import FloatingTabBar from '../components/FloatingTabBar';
 import LoadingScreen from '@/components/LoadingScreen';
 import { useAuth } from '@/contexts/AuthContext';
 
