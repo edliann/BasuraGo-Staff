@@ -1,4 +1,4 @@
-import Icon from 'react-native-remix-icon';
+import AppIcon from '../components/AppIcon';
 import { Redirect, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,7 +29,7 @@ export default function AccountScreen() {
             accessibilityRole="button"
             accessibilityLabel="Open settings"
           >
-            <Icon name="settings-3-line" size={23} color="#176B3A" fallback={null} />
+            <AppIcon name="settings-3-line" size={23} color="#176B3A" fallback={null} />
           </Pressable>
         </View>
 
@@ -58,7 +58,7 @@ export default function AccountScreen() {
         <Text style={styles.sectionTitle}>Account access</Text>
         <View style={styles.menuCard}>
           <View style={styles.menuRow}>
-            <View style={styles.menuIcon}><Icon name="building-2-line" size={22} color="#176B3A" fallback={null} /></View>
+            <View style={styles.menuIcon}><AppIcon name="building-2-line" size={22} color="#176B3A" fallback={null} /></View>
             <View style={styles.menuCopy}>
               <Text style={styles.menuTitle}>Assigned facility</Text>
               <Text style={styles.menuDescription}>Your facility details are managed by your administrator.</Text>
@@ -67,10 +67,10 @@ export default function AccountScreen() {
           <View style={styles.menuDivider} />
           <Pressable style={({ pressed }) => [styles.logoutRow, pressed && styles.pressed]} onPress={logout} accessibilityRole="button">
             <View style={styles.logoutLabel}>
-              <Icon name="logout-box-r-line" size={20} color="#B42318" fallback={null} />
+              <AppIcon name="logout-box-r-line" size={20} color="#B42318" fallback={null} />
               <Text style={styles.logoutText}>Log out</Text>
             </View>
-            <Icon name="arrow-right-s-line" size={21} color="#B42318" fallback={null} />
+            <AppIcon name="arrow-right-s-line" size={21} color="#B42318" fallback={null} />
           </Pressable>
         </View>
       </ScrollView>
