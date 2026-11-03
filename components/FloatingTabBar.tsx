@@ -1,11 +1,22 @@
-import AppIcon from './AppIcon';
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const tabs = [
-  { label: 'Home', route: '/dashboard' as const, icon: 'home-5-line' },
-  { label: 'Receive', route: '/receipt' as const, icon: 'recycle-line' },
-  { label: 'Account', route: '/account' as const, icon: 'user-3-line' },
+  {
+    label: 'Home',
+    route: '/dashboard' as const,
+    icon: require('../assets/icon/home-icon.png'),
+  },
+  {
+    label: 'Receive',
+    route: '/receipt' as const,
+    icon: require('../assets/icon/receive-icon.png'),
+  },
+  {
+    label: 'Account',
+    route: '/account' as const,
+    icon: require('../assets/icon/account-icon.png'),
+  },
 ];
 
 export default function FloatingTabBar() {
@@ -30,11 +41,11 @@ export default function FloatingTabBar() {
             accessibilityState={{ selected: active }}
             accessibilityLabel={tab.label}
           >
-            <AppIcon
-              name={active ? tab.icon.replace('-line', '-fill') : tab.icon}
-              size={23}
-              color={active ? '#176B3A' : '#78867B'}
-              fallback={null}
+            <Image
+              source={tab.icon}
+              style={[styles.icon, active && styles.activeIcon]}
+              resizeMode="contain"
+              accessible={false}
             />
             <Text style={[styles.label, active && styles.activeLabel]}>
               {tab.label}
@@ -78,6 +89,13 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     backgroundColor: '#EAF5EC',
+  },
+  icon: {
+    width: 27,
+    height: 27,
+  },
+  activeIcon: {
+    transform: [{ scale: 1.06 }],
   },
   pressed: {
     opacity: 0.72,

@@ -3,12 +3,14 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Image,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import FloatingTabBar from '../components/FloatingTabBar';
+import FacilityOperationsDashboard from '@/components/FacilityOperationsDashboard';
 import LoadingScreen from '@/components/LoadingScreen';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -102,25 +104,16 @@ export default function DashboardScreen() {
 
         <View style={styles.header}>
           <View style={styles.brandLockup}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>B</Text>
-            </View>
-            <View>
-              <Text style={styles.brand}>BasuraGo</Text>
+            <Image
+              source={require('../assets/images/basurago-logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+              accessibilityLabel="BasuraGo logo"
+            />
+          </View>
+            <View style={styles.brandTextContainer}>
               <Text style={styles.role}>FACILITY STAFF</Text>
             </View>
-          </View>
-          <Pressable
-            onPress={logout}
-            accessibilityRole="button"
-            accessibilityLabel="Log out"
-            style={({ pressed }) => [
-              styles.logoutButton,
-              pressed && styles.logoutButtonPressed,
-            ]}
-          >
-            <Text style={styles.logoutText}>Log out</Text>
-          </Pressable>
         </View>
 
         <View style={styles.welcomeBlock}>
@@ -136,9 +129,6 @@ export default function DashboardScreen() {
 
         <View style={styles.facilityCard}>
           <View style={styles.facilityCardTop}>
-            <View style={styles.facilityIcon}>
-              <Text style={styles.facilityIconText}>⌂</Text>
-            </View>
             <View style={styles.facilityHeadingCopy}>
               <Text style={styles.cardEyebrow}>ASSIGNED FACILITY</Text>
               <Text style={styles.cardTitle}>Facility overview</Text>
@@ -171,15 +161,14 @@ export default function DashboardScreen() {
           <Text style={styles.facilityName}>{dashboard.facilityName}</Text>
 
           <View style={styles.addressRow}>
-            <View style={styles.addressIcon}>
-              <Text style={styles.addressIconText}>⌖</Text>
-            </View>
             <View style={styles.addressCopy}>
               <Text style={styles.fieldLabel}>FACILITY ADDRESS</Text>
               <Text style={styles.address}>{dashboard.facilityAddress}</Text>
             </View>
           </View>
         </View>
+
+        <FacilityOperationsDashboard />
 
         <View style={styles.sectionHeading}>
           <Text style={styles.sectionTitle}>Quick action</Text>
@@ -195,9 +184,6 @@ export default function DashboardScreen() {
           accessibilityRole="button"
           accessibilityLabel="Receive a pickup. Open the facility pickup receipt workflow."
         >
-          <View style={styles.actionIconWrap}>
-            <Text style={styles.actionIcon}>↧</Text>
-          </View>
           <View style={styles.actionCopy}>
             <Text style={styles.actionTitle}>Receive a pickup</Text>
             <Text style={styles.actionDescription}>
@@ -205,26 +191,20 @@ export default function DashboardScreen() {
               received weight.
             </Text>
             <View style={styles.actionLinkRow}>
-              <Text style={styles.actionLink}>Open receipt workflow</Text>
-              <Text style={styles.actionArrow}>→</Text>
+              <Text style={styles.actionLink}>Open receipt workflow →</Text>
             </View>
           </View>
         </Pressable>
 
         <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Facility updates</Text>
+          <Text style={styles.sectionTitle}>Operations note</Text>
         </View>
 
         <View style={styles.emptyCard}>
-          <View style={styles.emptyIllustration}>
-            <View style={styles.emptyIllustrationInner}>
-              <Text style={styles.emptyIllustrationText}>✓</Text>
-            </View>
-          </View>
-          <Text style={styles.emptyTitle}>You&apos;re all set</Text>
+          <Text style={styles.emptyTitle}>No separate activity feed</Text>
           <Text style={styles.emptyBody}>
-            Pickup and delivery updates will appear here when they are available.
-            For now, use Receive a pickup to record an incoming facility receipt.
+            Live capacity, recent receipts, and waste-type totals are shown above.
+            Receipt records are created when staff complete the receive workflow.
           </Text>
         </View>
 
@@ -247,15 +227,24 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
   },
   header: {
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    gap: 12,
+    marginBottom: 24,
   },
   brandLockup: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    minWidth: 0,
+  },
+  brandLogo: {
+    width: 170,
+    height: 54,
+    maxWidth: '65%',
   },
   brandMark: {
     width: 42,
@@ -276,30 +265,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-  role: {
-    marginTop: 2,
-    color: '#66806D',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-  },
-  logoutButton: {
-    minHeight: 40,
-    paddingHorizontal: 13,
-    alignItems: 'center',
+  brandTextContainer: {
+    flexShrink: 1,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#DCE5DD',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
   },
-  logoutButtonPressed: {
-    backgroundColor: '#EAF1EB',
-  },
-  logoutText: {
-    color: '#3D5545',
-    fontSize: 13,
-    fontWeight: '700',
+  role: {
+    color: '#66806D',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
   },
   welcomeBlock: {
     marginBottom: 22,

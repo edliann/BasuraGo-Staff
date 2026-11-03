@@ -17,12 +17,88 @@ import {
 import { Redirect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import FloatingTabBar from '../components/FloatingTabBar';
+
 import LoadingScreen from '@/components/LoadingScreen';
 import { useAuth } from '@/contexts/AuthContext';
-import { receivePickup } from '@/services/pickupReceipt';
-import type { PickupReceiptResult } from '@/services/pickupReceipt';
+import { auth } from '@/services/firebase';
+import {
+  getPickupReceiptPreview,
+  receivePickup,
+} from '@/services/pickupReceipt';
+import {
+  getReceiptPreviewFailureMessage,
+  getReceiptPreviewFailureReason,
+} from '@/services/receiptPreviewError';
+import {
+  canSubmitReceipt,
+  getReceiptIneligibilityMessage,
+  getReceiptStatusLabel,
+} from '@/services/receiptEligibility';
+import type {
+  PickupReceiptPreview,
+  PickupReceiptResult,
+} from '@/services/pickupReceipt';
 
-function getReceiptError(error: unknown): string {
+const PICKUP_QR_VERSION = 1;
+const PICKUP_QR_TYPE = 'basurago-pickup';
+
+function parsePickupQrPayload(data: string): string {
+  if (data.length > 512) throw new Error('QR payload is too long.');
+  let payload: unknown;
+  try {
+    payload = JSON.parse(data);
+  } catch {
+    throw new Error('This is not a BasuraGo pickup QR code.');
+  }
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    throw new Error('Pickup QR data has an invalid structure.');
+  }
+  const candidate = payload as Record<string, unknown>;
+  if (candidate.v !== PICKUP_QR_VERSION || candidate.type !== PICKUP_QR_TYPE) {
+    throw new Error('This pickup QR version or type is not supported.');
+  }
+  if (
+    typeof candidate.pickupId !== 'string' ||
+    !candidate.pickupId.trim() ||
+    candidate.pickupId.length > 128 ||
+    candidate.pickupId.includes('/') ||
+    /\s/.test(candidate.pickupId)
+  ) {
+    throw new Error('Pickup QR data does not contain a valid pickup reference.');
+  }
+  return candidate.pickupId.trim();
+}
+
+function createDiagnosticId(): string {
+  return `receipt-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 12)}`;
+}
+
+function getFirebaseErrorCode(error: unknown): string {
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('code' in error) ||
+    typeof error.code !== 'string'
+  ) return 'unknown';
+
+  const code = error.code.replace(/^functions\//, '');
+  return /^[a-z0-9-]+$/.test(code) ? code : 'unknown';
+}
+
+function formatReceiptTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Time unavailable';
+  return new Intl.DateTimeFormat('en-PH', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Manila',
+  }).format(date);
+}
+
+function getReceiptError(error: unknown, previewFailure = false): string {
   const code =
     typeof error === 'object' &&
     error !== null &&
@@ -38,6 +114,14 @@ function getReceiptError(error: unknown): string {
       ? error.message
       : '';
 
+  if (code === 'failed-precondition' && previewFailure) {
+    return getReceiptPreviewFailureMessage(
+      getReceiptPreviewFailureReason(error),
+    ) || message || 'This pickup is not eligible for facility receipt.';
+  }
+  if (code === 'failed-precondition') {
+    return message || 'This pickup is not eligible for facility receipt.';
+  }
   if (code === 'invalid-argument') {
     return message || 'Enter the pickup document ID from its QR code.';
   }
@@ -53,63 +137,127 @@ function getReceiptError(error: unknown): string {
   if (code === 'permission-denied' || code === 'unauthenticated') {
     return 'Your facility staff access could not be confirmed. Sign in again or contact your administrator.';
   }
-  if (code === 'failed-precondition') {
-    return message || 'This pickup is not eligible for facility receipt.';
-  }
   if (
     code === 'unavailable' ||
     code === 'deadline-exceeded' ||
     code === 'network-request-failed'
   ) {
-    return 'The receipt service could not be reached. Check your connection and try again.';
+    return 'The receipt service could not be reached. The outcome may be uncertain; retrying is safe because the Backend preserves the first recorded receipt and weight.';
   }
   return 'Unable to record this facility receipt. Please try again.';
 }
 
 export default function PickupReceiptScreen() {
-  const { status } = useAuth();
+  const { status, dashboard } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [pickupId, setPickupId] = useState('');
   const [actualWeight, setActualWeight] = useState('');
+  const [preview, setPreview] = useState<PickupReceiptPreview | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
+  const [resolving, setResolving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uncertainSubmission, setUncertainSubmission] = useState(false);
   const [error, setError] = useState('');
   const [receipt, setReceipt] = useState<PickupReceiptResult | null>(null);
   const requestInProgress = useRef(false);
+  const previewRequestInProgress = useRef(false);
   const barcodeHandled = useRef(false);
 
+  async function resolvePickup(candidateId: string) {
+    const normalizedPickupId = candidateId.trim();
+    if (previewRequestInProgress.current || requestInProgress.current) return;
+    if (
+      !normalizedPickupId ||
+      normalizedPickupId.length > 128 ||
+      normalizedPickupId.includes('/') ||
+      /\s/.test(normalizedPickupId)
+    ) {
+      setError('Enter a valid pickup reference.');
+      return;
+    }
+
+    previewRequestInProgress.current = true;
+    setResolving(true);
+    setError('');
+    setScanError('');
+    setUncertainSubmission(false);
+    setPreview(null);
+    setPickupId(normalizedPickupId);
+    setActualWeight('');
+    const diagnosticId = createDiagnosticId();
+    try {
+      let idTokenRefreshSucceeded = false;
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          await currentUser.getIdToken(true);
+          idTokenRefreshSucceeded = true;
+        } catch {
+          idTokenRefreshSucceeded = false;
+        }
+      }
+      console.info('[FacilityReceiptDiagnostics] preview attempt', {
+        operation: 'getPickupReceiptPreviewFunction',
+        diagnosticId,
+        authCurrentUserPresent: auth.currentUser !== null,
+        authContextAuthorized: status === 'authorized',
+        idTokenRefreshSucceeded,
+      });
+
+      const result = await getPickupReceiptPreview(
+        normalizedPickupId,
+        diagnosticId,
+      );
+      setPreview(result);
+    } catch (previewError) {
+      console.error('[FacilityReceiptDiagnostics] preview failed', {
+        operation: 'getPickupReceiptPreviewFunction',
+        diagnosticId,
+        code: getFirebaseErrorCode(previewError),
+        reason: getReceiptPreviewFailureReason(previewError),
+      });
+      setError(getReceiptError(previewError, true));
+      barcodeHandled.current = false;
+    } finally {
+      previewRequestInProgress.current = false;
+      setResolving(false);
+    }
+  }
+
   function handleBarcodeScanned(result: BarcodeScanningResult) {
-    if (barcodeHandled.current || submitting || receipt) return;
+    if (barcodeHandled.current || resolving || submitting || receipt) return;
     barcodeHandled.current = true;
     setScanning(false);
 
-    const decodedId = result.data.trim();
-    if (
-      result.type !== 'qr' ||
-      decodedId.length === 0 ||
-      decodedId.length > 128 ||
-      decodedId.includes('/') ||
-      /\s/.test(decodedId)
-    ) {
-      setScanError(
-        'Invalid QR code. Scan a QR code containing only the pickup document ID.',
-      );
+    if (result.type !== 'qr') {
+      setScanError('Scan a BasuraGo pickup QR code.');
       barcodeHandled.current = false;
       return;
     }
 
-    setPickupId(decodedId);
-    setScanError('');
-    setError('');
+    try {
+      void resolvePickup(parsePickupQrPayload(result.data));
+    } catch (parseError) {
+      setScanError(
+        parseError instanceof Error
+          ? parseError.message
+          : 'Pickup QR data is invalid.',
+      );
+      barcodeHandled.current = false;
+    }
   }
 
   async function handleReceive() {
-    if (requestInProgress.current || receipt) return;
+    if (requestInProgress.current || previewRequestInProgress.current || receipt) return;
     const normalizedPickupId = pickupId.trim();
     const actualWeightKg = Number(actualWeight);
-    if (!normalizedPickupId) {
-      setError('Scan the pickup QR code or enter its pickup document ID.');
+    if (!preview || preview.pickupId !== normalizedPickupId) {
+      setError('Verify the pickup QR before recording a receipt.');
+      return;
+    }
+    if (preview.alreadyReceived) {
+      setError('This pickup already has a facility receipt.');
       return;
     }
     if (
@@ -130,9 +278,17 @@ export default function PickupReceiptScreen() {
         normalizedPickupId,
         actualWeightKg,
       );
+      setUncertainSubmission(false);
       setReceipt(result);
     } catch (receiptError) {
       console.error('Failed to record facility pickup receipt:', receiptError);
+      setUncertainSubmission(
+        [
+          'unavailable',
+          'deadline-exceeded',
+          'network-request-failed',
+        ].includes(getFirebaseErrorCode(receiptError)),
+      );
       setError(getReceiptError(receiptError));
     } finally {
       requestInProgress.current = false;
@@ -144,8 +300,10 @@ export default function PickupReceiptScreen() {
     setPickupId('');
     setActualWeight('');
     setReceipt(null);
+    setPreview(null);
     setError('');
     setScanError('');
+    setUncertainSubmission(false);
     setScanning(false);
     barcodeHandled.current = false;
   }
@@ -190,8 +348,8 @@ export default function PickupReceiptScreen() {
 
         <Text style={styles.title}>Facility Pickup Receipt</Text>
         <Text style={styles.subtitle}>
-          Use the pickup document ID encoded in the QR code. The Backend
-          verifies your assigned facility and records receipt.
+          Scan the rider&apos;s BasuraGo pickup QR. The Backend verifies that the
+          pickup belongs to your facility before showing its details.
         </Text>
 
         {receipt ? (
@@ -208,13 +366,58 @@ export default function PickupReceiptScreen() {
             </Text>
             <Text style={styles.label}>Pickup reference</Text>
             <Text selectable style={styles.value}>{receipt.pickupId}</Text>
+            <Text style={styles.label}>Receipt status</Text>
+            <Text style={styles.value}>Completed — facility receipt confirmed</Text>
+            <Text style={styles.label}>Receiving facility</Text>
+            <Text style={styles.value}>
+              {dashboard?.facilityName ?? 'Authorized facility'} ({receipt.facilityId})
+            </Text>
+            {dashboard?.facilityAddress ? (
+              <Text style={styles.help}>{dashboard.facilityAddress}</Text>
+            ) : null}
+            {receipt.acceptedAmountCentavos !== null && receipt.currency === 'PHP' ? (
+              <>
+                <Text style={styles.label}>Accepted pickup price</Text>
+                <Text style={styles.value}>
+                  ₱{(receipt.acceptedAmountCentavos / 100).toFixed(2)}
+                </Text>
+                {receipt.pricingVersion ? (
+                  <Text style={styles.help}>Pricing version {receipt.pricingVersion}</Text>
+                ) : null}
+                {typeof receipt.breakdown?.basePickupFeeCentavos === 'number' ? (
+                  <Text style={styles.help}>
+                    Base fee ₱{(receipt.breakdown.basePickupFeeCentavos / 100).toFixed(2)}
+                  </Text>
+                ) : null}
+                {typeof receipt.breakdown?.distanceCentavos === 'number' &&
+                receipt.breakdown.distanceCentavos > 0 ? (
+                  <Text style={styles.help}>
+                    {typeof receipt.breakdown.facilityTransportDistanceMeters === 'number'
+                      ? `Facility transport · ${(receipt.breakdown.facilityTransportDistanceMeters / 1000).toFixed(2)} km · `
+                      : typeof receipt.breakdown.riderDistanceMeters === 'number'
+                        ? `Legacy Rider route · ${(receipt.breakdown.riderDistanceMeters / 1000).toFixed(2)} km · `
+                        : 'Facility transport · '}
+                    {typeof receipt.breakdown.facilityTransportTierIndex === 'number' ?
+                      `tier ${receipt.breakdown.facilityTransportTierIndex + 1} · ` :
+                      typeof receipt.breakdown.riderDistanceTierIndex === 'number' ?
+                        `legacy tier ${receipt.breakdown.riderDistanceTierIndex + 1} · ` : ''}
+                    ₱{(receipt.breakdown.distanceCentavos / 100).toFixed(2)}
+                  </Text>
+                ) : null}
+                {typeof receipt.breakdown?.loadSurchargeCentavos === 'number' ? (
+                  <Text style={styles.help}>
+                    Load surcharge ₱{(receipt.breakdown.loadSurchargeCentavos / 100).toFixed(2)}
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
             <Text style={styles.label}>Actual received weight</Text>
             <Text style={styles.value}>{receipt.actualWeightKg} kg</Text>
             <Text style={styles.label}>Estimated weight</Text>
             <Text style={styles.value}>{receipt.estimatedWeightKg} kg</Text>
             <Text style={styles.label}>Receipt time</Text>
             <Text style={styles.value}>
-              {new Date(receipt.receivedAt).toLocaleString()}
+              {formatReceiptTime(receipt.receivedAt)}
             </Text>
             {receipt.exceedsMaximumCapacity ? (
               <View style={styles.warning}>
@@ -240,16 +443,15 @@ export default function PickupReceiptScreen() {
           </View>
         ) : (
           <View style={styles.card}>
-            <Text style={styles.fieldLabel}>Pickup QR payload</Text>
+            <Text style={styles.fieldLabel}>Pickup QR</Text>
             <Text style={styles.help}>
-              Scan a QR code containing only the pickup document ID, or enter
-              the ID manually. Confirm the measured weight before submitting
-              the receipt.
+              Camera access is used only to scan the pickup reference. You can
+              also enter the reference manually.
             </Text>
 
-            {pickupId.trim() ? (
+            {!preview && pickupId.trim() ? (
               <View style={styles.scannedIdBox}>
-                <Text style={styles.scannedIdLabel}>Scanned pickup ID</Text>
+                <Text style={styles.scannedIdLabel}>Pickup reference</Text>
                 <Text selectable style={styles.scannedIdValue}>
                   {pickupId.trim()}
                 </Text>
@@ -270,7 +472,7 @@ export default function PickupReceiptScreen() {
                   onBarcodeScanned={handleBarcodeScanned}
                 />
                 <Text style={styles.cameraHint}>
-                  Hold the pickup QR code inside the camera view.
+                  Hold the BasuraGo pickup QR inside the camera view.
                 </Text>
                 <Pressable
                   style={styles.secondaryButton}
@@ -312,6 +514,8 @@ export default function PickupReceiptScreen() {
               value={pickupId}
               onChangeText={(value) => {
                 setPickupId(value);
+                setPreview(null);
+                setActualWeight('');
                 setError('');
                 setScanError('');
                 barcodeHandled.current = false;
@@ -323,19 +527,174 @@ export default function PickupReceiptScreen() {
               accessibilityLabel="Pickup document ID"
             />
 
-            <Text style={styles.fieldLabel}>Actual received weight (kg)</Text>
-            <TextInput
-              style={styles.input}
-              value={actualWeight}
-              onChangeText={(value) => {
-                setActualWeight(value);
-                setError('');
-              }}
-              placeholder="Enter measured kilograms"
-              keyboardType="decimal-pad"
-              editable={!submitting}
-              accessibilityLabel="Actual received weight in kilograms"
-            />
+            {!preview ? (
+              <Pressable
+                style={[styles.primaryButton, resolving && styles.disabledButton]}
+                onPress={() => void resolvePickup(pickupId)}
+                disabled={resolving || submitting || !pickupId.trim()}
+                accessibilityRole="button"
+              >
+                {resolving ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color="#FFFFFF" />
+                    <Text style={styles.primaryButtonText}>Verifying pickup...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.primaryButtonText}>Verify Pickup</Text>
+                )}
+              </Pressable>
+            ) : (
+              <View style={styles.previewCard}>
+                <Text style={styles.successTitle}>
+                  {preview.alreadyReceived ? 'Pickup Already Received' : 'Pickup Verified'}
+                </Text>
+                <Text style={styles.label}>Pickup reference</Text>
+                <Text selectable style={styles.value}>{preview.pickupId}</Text>
+                <Text style={styles.label}>Status</Text>
+                <Text style={styles.value}>
+                  {getReceiptStatusLabel(preview)}
+                </Text>
+                {getReceiptIneligibilityMessage(preview) ? (
+                  <Text style={styles.error}>
+                    {getReceiptIneligibilityMessage(preview)}
+                  </Text>
+                ) : null}
+                <Text style={styles.label}>Receiving facility</Text>
+                <Text style={styles.value}>
+                  {dashboard?.facilityName ?? 'Authorized facility'} ({dashboard?.facilityId ?? 'ID unavailable'})
+                </Text>
+                {dashboard?.facilityAddress ? (
+                  <Text style={styles.help}>{dashboard.facilityAddress}</Text>
+                ) : null}
+                {!preview.alreadyReceived &&
+                preview.status === 'awaiting_facility_receipt' ? (
+                  <Text style={styles.help}>
+                    Rider collection is complete. Record the facility-measured
+                    weight here to finalize the pickup.
+                  </Text>
+                ) : null}
+                {!preview.alreadyReceived &&
+                preview.status === 'completed' ? (
+                  <Text style={styles.help}>
+                    This is a supported legacy pickup. The Backend allows its
+                    facility receipt to be recorded without changing the legacy
+                    collection history.
+                  </Text>
+                ) : null}
+                {preview.wasteTypeName ? (
+                  <>
+                    <Text style={styles.label}>Waste type</Text>
+                    <Text style={styles.value}>{preview.wasteTypeName}</Text>
+                  </>
+                ) : null}
+                {preview.items.map((item, index) => (
+                  <View key={`${item.wasteTypeName}:${item.bagSizeLabel}:${index}`}>
+                    <Text style={styles.label}>Waste item</Text>
+                    <Text style={styles.value}>
+                      {item.wasteTypeName} · {item.bagSizeLabel} × {item.quantity}
+                    </Text>
+                    <Text style={styles.help}>
+                      {item.estimatedWeightKg} kg estimated
+                    </Text>
+                  </View>
+                ))}
+                {preview.acceptedAmountCentavos !== null && preview.currency === 'PHP' ? (
+                  <>
+                    <Text style={styles.label}>Accepted pickup price</Text>
+                    <Text style={styles.value}>
+                      ₱{(preview.acceptedAmountCentavos / 100).toFixed(2)}
+                    </Text>
+                    {preview.pricingVersion ? (
+                      <Text style={styles.help}>
+                        Pricing version {preview.pricingVersion}
+                      </Text>
+                    ) : null}
+                    {typeof preview.breakdown?.basePickupFeeCentavos === 'number' ? (
+                      <Text style={styles.help}>
+                        Base fee ₱{(preview.breakdown.basePickupFeeCentavos / 100).toFixed(2)}
+                      </Text>
+                    ) : null}
+                    {typeof preview.breakdown?.distanceCentavos === 'number' &&
+                    preview.breakdown.distanceCentavos > 0 ? (
+                      <Text style={styles.help}>
+                       {typeof preview.breakdown.facilityTransportDistanceMeters === 'number'
+                         ? `Facility transport · ${(preview.breakdown.facilityTransportDistanceMeters / 1000).toFixed(2)} km · `
+                         : typeof preview.breakdown.riderDistanceMeters === 'number'
+                           ? `Legacy Rider route · ${(preview.breakdown.riderDistanceMeters / 1000).toFixed(2)} km · `
+                           : 'Facility transport · '}
+                       {typeof preview.breakdown.facilityTransportTierIndex === 'number' ?
+                         `tier ${preview.breakdown.facilityTransportTierIndex + 1} · ` :
+                         typeof preview.breakdown.riderDistanceTierIndex === 'number' ?
+                           `legacy tier ${preview.breakdown.riderDistanceTierIndex + 1} · ` : ''}
+                       ₱{(preview.breakdown.distanceCentavos / 100).toFixed(2)}
+                     </Text>
+                    ) : null}
+                    {typeof preview.breakdown?.loadSurchargeCentavos === 'number' ? (
+                      <Text style={styles.help}>
+                        Load surcharge ₱{(preview.breakdown.loadSurchargeCentavos / 100).toFixed(2)}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : null}
+                {preview.estimatedWeightKg !== null ? (
+                  <>
+                    <Text style={styles.label}>Estimated weight</Text>
+                    <Text style={styles.value}>{preview.estimatedWeightKg} kg</Text>
+                  </>
+                ) : null}
+                {preview.scheduledDate || preview.scheduledTime ? (
+                  <>
+                    <Text style={styles.label}>Scheduled</Text>
+                    <Text style={styles.value}>
+                      {preview.scheduledDate ?? 'Date not set'} · {preview.scheduledTime ?? 'Time not set'}
+                    </Text>
+                  </>
+                ) : null}
+                {preview.alreadyReceived ? (
+                  <>
+                    <Text style={styles.help}>
+                      Actual facility-received weight:{' '}
+                      {preview.actualWeightKg ?? 'unavailable'} kg. No second
+                      receipt will be submitted.
+                    </Text>
+                    <Text style={styles.label}>Receipt time</Text>
+                    <Text style={styles.value}>
+                      {preview.receivedAt
+                        ? formatReceiptTime(preview.receivedAt)
+                        : 'Time unavailable'}
+                    </Text>
+                    <Pressable style={styles.secondaryButton} onPress={resetForm}>
+                      <Text style={styles.secondaryButtonText}>Scan Another Pickup</Text>
+                    </Pressable>
+                  </>
+                ) : null}
+              </View>
+            )}
+
+            {preview && canSubmitReceipt(preview) ? (
+              <>
+                <Text style={styles.fieldLabel}>Actual received weight (kg)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={actualWeight}
+                  onChangeText={(value) => {
+                    setActualWeight(value);
+                    setError('');
+                  }}
+                  placeholder="Enter measured kilograms"
+                  keyboardType="decimal-pad"
+                  editable={!submitting && !uncertainSubmission}
+                  accessibilityLabel="Actual received weight in kilograms"
+                />
+                {uncertainSubmission ? (
+                  <Text style={styles.help}>
+                    Keep the original weight while retrying. If the first request
+                    succeeded, the Backend returns its original receipt without
+                    changing accounting again.
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
 
             {error ? (
               <Text style={styles.error} accessibilityRole="alert">
@@ -343,31 +702,36 @@ export default function PickupReceiptScreen() {
               </Text>
             ) : null}
 
-            <Pressable
-              style={[
-                styles.primaryButton,
-                submitting && styles.disabledButton,
-              ]}
-              onPress={() => void handleReceive()}
-              disabled={submitting}
-              accessibilityRole="button"
-            >
-              {submitting ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color="#FFFFFF" />
+            {preview && canSubmitReceipt(preview) ? (
+              <Pressable
+                style={[
+                  styles.primaryButton,
+                  submitting && styles.disabledButton,
+                ]}
+                onPress={() => void handleReceive()}
+                disabled={submitting || resolving}
+                accessibilityRole="button"
+              >
+                {submitting ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color="#FFFFFF" />
+                    <Text style={styles.primaryButtonText}>
+                      Recording receipt...
+                    </Text>
+                  </View>
+                ) : (
                   <Text style={styles.primaryButtonText}>
-                    Verifying and receiving...
+                    {uncertainSubmission
+                      ? 'Retry Facility Receipt Safely'
+                      : 'Confirm Facility Receipt'}
                   </Text>
-                </View>
-              ) : (
-                <Text style={styles.primaryButtonText}>
-                  Confirm Facility Receipt
-                </Text>
-              )}
-            </Pressable>
+                )}
+              </Pressable>
+            ) : null}
           </View>
         )}
       </ScrollView>
+      <FloatingTabBar />
     </SafeAreaView>
   );
 }
@@ -380,7 +744,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     padding: 22,
-    paddingBottom: 36,
+    paddingBottom: 112,
   },
   backLink: {
     color: '#1F7A3F',
@@ -545,5 +909,13 @@ const styles = StyleSheet.create({
     color: '#166534',
     fontSize: 15,
     fontWeight: '600',
+  },
+  previewCard: {
+    backgroundColor: '#F4F8F4',
+    borderColor: '#DCE8DE',
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 16,
+    padding: 14,
   },
 });

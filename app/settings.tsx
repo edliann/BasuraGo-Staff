@@ -26,7 +26,6 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <View style={styles.row}>
-            <View style={styles.iconBox}><AppIcon name="sun-line" size={22} color="#176B3A" fallback={null} /></View>
             <View style={styles.copy}>
               <Text style={styles.rowTitle}>Appearance</Text>
               <Text style={styles.rowDescription}>BasuraGo currently uses the light theme.</Text>
@@ -35,7 +34,6 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
-            <View style={styles.iconBox}><AppIcon name="shield-check-line" size={22} color="#176B3A" fallback={null} /></View>
             <View style={styles.copy}>
               <Text style={styles.rowTitle}>Facility access</Text>
               <Text style={styles.rowDescription}>Access is verified automatically while you use the app.</Text>
